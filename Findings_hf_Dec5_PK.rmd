@@ -1,0 +1,250 @@
+---
+title: "Impact of Tax Liens in New York City: Preliminary Findings"
+author: "Fanhua, Sai Priya Kodidala, Raihan Amir"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+output: 
+  ioslides_presentation: default
+  beamer_presentation: default
+  slidy_presentation: default
+warnings: no
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r library, echo=FALSE,warning=FALSE,message=FALSE}
+#install.packages("gridExtra")
+#install.packages("grid")
+#install.packages("stargazer")
+
+library(tidyverse)
+library(fastDummies)
+library(ggplot2) #included with Tidyverse
+library(forcats) #included with Tidyverse
+library(foreign)     #note only imports .dta files up thru Stata 12
+library(readstata13)  #imports .dta files from Stata 13 thru 15
+library(dplyr)
+library(lubridate)
+library(weights)
+# Install and load the readr package
+
+library(readr)
+
+library(knitr)
+library(xtable)
+library(readxl)
+library(moments)
+library(zoo)
+library(gridExtra)
+library(grid)
+
+library(broom)
+library(knitr)
+
+library(stargazer)
+
+```
+
+```{r load data, echo = FALSE}
+sales_demo_econ_clean <- readRDS("sales_demo_econ_clean.rds")
+load("newdata2014.RData")
+```
+
+
+# 1. Introduction
+
+## <span style="font-size: 24px;"> Problem Statement and Hypothesis </span> 
+
+Every year, homeowners in New York City who fall behind on their tax or water bills can find themselves subject to the City’s annual lien sale, a process through which the City sells outstanding tax and water debts, and the ability to collect them, to private investors.
+
+The majority of these homeowners live in communities of color and are already financially vulnerable
+
+To better understand how the lien sale impacts homeowners and their communities, we conducted an analysis of liens sold on properties by the City from 2013 to 2021
+
+# 2. Background
+
+
+```{r }
+
+newdata$ovshare <- newdata$Hsp1P + newdata$BlNHP
+
+```
+
+
+## <span style="font-size: 24px;"> Sales vs Hispanic/Black Neighborhood in 2014 </span> 
+```{r echo=FALSE, fig.cap="Sales vs Hispanic/Black Neighborhood"}
+ggplot() +
+    geom_sf(data = newdata, aes(fill = ovshare), color = "white", size = 0.1) +
+    scale_fill_gradient(low = "black", high = "lightblue", limits = c(0, 100)) +
+    geom_point(data = filter(newdata, year == 2014, cxy_lon > -75), aes(x = cxy_lon, y = cxy_lat),  color = "red", alpha = 0.8, size = 0.05) +
+    labs(title = "Sales vs Hispanic/Black Neighborhood", fill = "% of Hispanic or Black communities") +
+    theme_minimal() +
+    theme(axis.text = element_blank(),
+        axis.title = element_blank(),
+        axis.ticks = element_blank(),
+        panel.grid = element_blank(),
+        legend.position = "bottom")
+```
+
+## <span style="font-size: 24px;">Data Descriptions </span>
+
+```{r }
+
+colnames(sales_demo_econ_clean)
+
+```
+
+## <span style="font-size: 24px;">Data Descriptions </span>
+
+New York City Tax Lien Sale Data from 2013 to 2021
+
+New York City Demographics and Economic Data from 2021 ACS 5-year survey
+
+Year
+```{r }
+
+summary(sales_demo_econ_clean$year)
+```
+Sales Count
+```{r }
+summary(sales_demo_econ_clean$sales_count)
+```
+
+## <span style="font-size: 24px;">Data Descriptions </span>
+% of Black/African American population
+```{r }
+summary(sales_demo_econ_clean$BlNHP)
+```
+% of Hispanic/Latino population
+```{r }
+summary(sales_demo_econ_clean$Hsp1P)
+```
+Median Income
+```{r }
+summary(sales_demo_econ_clean$medincom)
+```
+# Preliminary Findings
+
+## <span style="font-size: 24px;">Black Homeownership and Tax Lien Property Numbers </span>
+
+```{r plot_race1, echo=FALSE, fig.cap="Scatterplot: % Black vs. Tax Lien Sales"}
+plot_race1 <- ggplot(data = sales_demo_econ_clean, 
+          aes(x = BlNHP, y = sales_count)) + 
+     geom_point() +
+     geom_smooth(method = 'lm', formula = y ~ x) +
+     xlab("Share of black residents") + 
+     ylab("Number of properties on tax lien sales") 
+```
+
+
+```{r plot_race2, echo=FALSE, fig.cap="Scatterplot: % Black vs. Tax Lien Sales"}
+ plot_race2 <- ggplot(data = sales_demo_econ_clean, 
+           aes(x = BlNHP, 
+               y = sales_count,
+               size = Pop_2E)) + 
+      geom_point(alpha = 0.1) + 
+      scale_size(range = c(0.1, 6), guide = "none")+  
+     xlab("Share of black residents") + 
+     ylab("Number of properties on tax lien sales") +
+     labs(size = "Total population")
+```
+
+
+```{r plot1, warning=FALSE,message=FALSE}
+
+grid.arrange(plot_race1, plot_race2, nrow = 1)
+
+# Add correlation value
+cor_value <- cor(sales_demo_econ_clean$BlNHP, sales_demo_econ_clean$sales_count, use = "pairwise.complete.obs")
+cor_text1 <- paste("Correlation: ", round(cor_value, 3))
+
+grid.text(label = cor_text1, x = 0.5, y = -0.2, just = "center", gp = gpar(fontsize = 14))
+
+```
+- `r cor_text1`
+
+## <span style="font-size: 24px;">Median Income and Tax Lien Property Numbers </span>
+
+```{r plot_medinc1, echo=FALSE, fig.cap="Scatterplot: % Income vs. Tax Lien Sales"}
+ #scatterplot: median income vs tax lien sales
+    plot_medinc1 <- ggplot(data = na.omit(sales_demo_econ_clean), 
+                           aes(x = medincom, y = sales_count)) + 
+      geom_point() +
+      geom_smooth(method = 'lm', formula = y ~ x) 
+    ggsave("plot_medinc1.png", plot = plot_medinc1, width = 8, height = 6, units = "in")
+    
+```
+
+```{r plot_medinc2, echo=FALSE, fig.cap="Scatterplot: % Income vs. Tax Lien Sales"}
+    plot_medinc2 <- ggplot(data = na.omit(sales_demo_econ_clean), 
+                           aes(x = medincom,
+                               y = sales_count,
+                               size = Pop_2E)) + 
+      geom_point(alpha = 0.1) + #alpha adjusts the transparency of points
+      scale_size(range = c(0.1, 6), guide = "none") 
+    
+    ggsave("scatterplot_medinc2.png", plot = plot_medinc2, width = 8, height = 6, units = "in")
+```
+
+
+```{r plot2, warning=FALSE,message=FALSE}
+
+grid.arrange(plot_medinc1, plot_medinc2, nrow = 1)
+
+# Add correlation value
+cor_value2 <- cor(sales_demo_econ_clean$medincom, sales_demo_econ_clean$sales_count, use = "pairwise.complete.obs")
+cor_text2 <- paste("Correlation: ", round(cor_value2, 3))
+
+grid.text(label = cor_text2, x = 0.5, y = -0.2, just = "center", gp = gpar(fontsize = 14))
+
+```
+- `r cor_text2`
+
+## <span style="font-size: 24px;">Median Income & Race and Tax Lien Property Numbers </span>
+
+```{r plot_medinc_race,echo=FALSE}
+plot_medinc_race <- ggplot(data = na.omit(sales_demo_econ_clean), 
+                               aes(x = BlNHP, 
+                                   y = sales_count, 
+                                   color = medincom,
+                                   size = medincom)) + 
+      geom_point(alpha = 0.1) +
+      scale_size(range = c(0.1,6), guide = "none") + 
+      scale_color_gradient(low = "purple", high ="red") + 
+      xlab("Share of black residents") + 
+      ylab("Number of tax lien sales") + 
+      labs(color = "Median income")
+    
+    ggsave("scatterplot_medinc&race.png", plot = plot_medinc_race, width = 8, height = 6, units = "in")
+    
+```
+
+```{r plot3, warning=FALSE}
+grid.arrange(plot_medinc_race, nrow = 1)
+
+```
+
+## Preliminary Regression Results
+<div style="font-size: 20px;">
+\[ sales_t = \beta_0 + \beta_1 black_t + \beta_2 hispanic_t + \beta_3 medincome_t + \epsilon_t \]
+</div>
+
+```{r regression_results, echo=FALSE, warning=FALSE, results='asis'}
+
+# Fit the regression models
+model1 <- lm(sales_count ~ BlNHP + medincom + factor(year), data = sales_demo_econ_clean)
+model3 <- lm(sales_count ~ BlNHP + Hsp1P + medincom + factor(year), data = sales_demo_econ_clean)
+model4 <- lm(sales_count ~ BlNHP + Hsp1P + medincom + Borough.y + factor(year), data = sales_demo_econ_clean)
+
+# Generate regression table
+table_html <- stargazer::stargazer(model1, model3, model4, type = "html", title = "Regression Results", align = TRUE, header = FALSE, font.size = "small", summary = FALSE)
+
+# Add CSS styling to the table
+styled_table <- paste0("<style> table { font-size: 9px; } </style>", table_html)
+
+# Print the styled table
+cat(styled_table)
+
+```
+
